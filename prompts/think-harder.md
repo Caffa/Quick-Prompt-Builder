@@ -1,0 +1,1 @@
+Think more deeply. Reason about what would be sensible on a higher level. For example, [Give an example of where they are not thinking enough about?]? This tool should be automate decisions when options are clearly mutually exclusive. You can check the code, you can ask me questions, but think about how this code works and explain to us both, what you think is going on.

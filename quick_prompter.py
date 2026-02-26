@@ -10,7 +10,6 @@ from pathlib import Path
 from rich.console import Console
 from rich.panel import Panel
 from rich.prompt import Prompt
-from rich.markdown import Markdown
 
 console = Console()
 
@@ -108,8 +107,10 @@ def create_bold_preview(content: str, answers: list[tuple[str, str]]) -> str:
     result = content
     for placeholder, answer in answers:
         if answer != placeholder:  # Only bold/color filled answers
-            # Use rich colored bold for the answer
-            result = result.replace(placeholder, f"[**green**]{answer}[/**green**]", 1)
+            # Use rich bold green color for the answer
+            result = result.replace(
+                placeholder, f"[bold green]{answer}[/bold green]", 1
+            )
     return result
 
 
@@ -236,7 +237,7 @@ def main():
     # Questions are in [brackets], answers are bolded
     preview_styled = bold_preview
     console.print(f"\n[dim]Preview:[/dim]\n")
-    console.print(Markdown(preview_styled))
+    console.print(preview_styled)
 
 
 if __name__ == "__main__":
