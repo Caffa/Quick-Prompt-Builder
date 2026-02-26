@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """Quick Prompter - Fill in prompt templates via CLI."""
 
+import os
 import re
 import sys
 import pyperclip
@@ -12,6 +13,9 @@ from rich.prompt import Prompt
 from rich.markdown import Markdown
 
 console = Console()
+
+QUESTION_STYLE = "cyan"
+RESPONSE_STYLE = "green"
 
 
 def parse_placeholders(content: str) -> list[tuple[str, str, str]]:
@@ -55,11 +59,57 @@ def get_choices(text: str) -> list[str]:
     return []
 
 
+def is_directory_question(text: str) -> bool:
+    """Check if the question is about a directory or folder."""
+    text_lower = text.lower()
+    keywords = ["where", "directory", "folder", "which folder"]
+    return any(keyword in text_lower for keyword in keywords)
+
+
+def print_folder_tree(base_path: Path = None, max_depth: int = 2):
+    """Print a 2-level deep tree showing only folders."""
+    if base_path is None:
+        base_path = Path.cwd()
+
+    def print_tree(path: Path, prefix: str = "", depth: int = 0):
+        if depth >= max_depth:
+            return
+
+        try:
+            items = sorted([p for p in path.iterdir() if p.is_dir()])
+            for i, item in enumerate(items):
+                is_last = i == len(items) - 1
+                current_prefix = "└── " if is_last else "├── "
+                console.print(
+                    f"{prefix}{current_prefix}[bold blue]📁 {item.name}/[/bold blue]"
+                )
+
+                if depth < max_depth - 1:
+                    extension = "    " if is_last else "│   "
+                    print_tree(item, prefix + extension, depth + 1)
+        except PermissionError:
+            pass
+
+    console.print(f"\n[bold]📁 Current folders:[/bold] ({base_path})\n")
+    print_tree(base_path)
+    console.print()
+
+
 def build_prompt(content: str, answers: list[tuple[str, str]]) -> str:
     """Replace placeholders with their answers in order."""
     result = content
     for placeholder, answer in answers:
         result = result.replace(placeholder, answer, 1)
+    return result
+
+
+def create_bold_preview(content: str, answers: list[tuple[str, str]]) -> str:
+    """Create preview with answers bolded and colored."""
+    result = content
+    for placeholder, answer in answers:
+        if answer != placeholder:  # Only bold/color filled answers
+            # Use rich colored bold for the answer
+            result = result.replace(placeholder, f"[**green**]{answer}[/**green**]", 1)
     return result
 
 
@@ -97,14 +147,69 @@ def main():
 
         if input_type == "selection":
             choices = get_choices(text)
-            console.print(f"[bold]Select:[/bold] {text}")
-            answer = Prompt.ask("Choose", choices=choices, console=console)
-        else:
-            # Clean up the question text (remove trailing ? if present for display)
-            question = text.rstrip("?").strip()
-            answer = Prompt.ask(f"[bold]{question}[/bold]?", console=console)
+            default_choice = choices[0] if choices else ""
+            console.print(f"\n[{QUESTION_STYLE}]Select:[/]\n")
+            for idx, choice in enumerate(choices, 1):
+                console.print(f"  [bold]{idx}[/bold] {choice}")
 
-        if answer.strip():
+            while True:
+                user_input = Prompt.ask(
+                    f"\n[{RESPONSE_STYLE}]Enter number[/] [{RESPONSE_STYLE}](default: {default_choice})[/]",
+                    default=default_choice,
+                    console=console,
+                )
+                if not user_input.strip():
+                    answer = default_choice
+                    break
+                try:
+                    choice_idx = int(user_input) - 1
+                    if 0 <= choice_idx < len(choices):
+                        answer = choices[choice_idx]
+                        break
+                    else:
+                        console.print(
+                            f"[red]Please enter a number between 1 and {len(choices)}[/red]"
+                        )
+                except ValueError:
+                    console.print(f"[red]Please enter a valid number[/red]")
+        else:
+            # Check if it's a directory question
+            if is_directory_question(text):
+                print_folder_tree()
+
+                # Find default path containing .planning
+                default_path = ""
+                try:
+                    for root, dirs, _ in os.walk(Path.cwd()):
+                        for d in dirs:
+                            if ".planning" in d:
+                                default_path = str(Path(root) / d)
+                                break
+                        if default_path:
+                            break
+                except Exception:
+                    pass
+
+                # Clean up the question text (remove trailing ? if present for display)
+                question = text.rstrip("?").strip()
+                if default_path:
+                    answer = Prompt.ask(
+                        f"[{QUESTION_STYLE}]{question}[/{QUESTION_STYLE}]?",
+                        default=default_path,
+                        console=console,
+                    )
+                else:
+                    answer = Prompt.ask(
+                        f"[{QUESTION_STYLE}]{question}[/{QUESTION_STYLE}]?",
+                        console=console,
+                    )
+            else:
+                answer = Prompt.ask(
+                    f"[{QUESTION_STYLE}]{text}[/{QUESTION_STYLE}]?",
+                    console=console,
+                )
+
+        if answer.strip() and answer != placeholder:
             answers.append((placeholder, answer.strip()))
         else:
             # Keep placeholder if no answer
@@ -124,10 +229,14 @@ def main():
         )
     )
 
-    # Show truncated preview
-    preview = final_prompt[:500] + "..." if len(final_prompt) > 500 else final_prompt
-    console.print(f"\n[dim]Preview (first 500 chars):[/dim]")
-    console.print(Markdown(preview))
+    # Show full preview with bolded answers
+    bold_preview = create_bold_preview(content, answers)
+
+    # Color the questions and answers in preview
+    # Questions are in [brackets], answers are bolded
+    preview_styled = bold_preview
+    console.print(f"\n[dim]Preview:[/dim]\n")
+    console.print(Markdown(preview_styled))
 
 
 if __name__ == "__main__":
