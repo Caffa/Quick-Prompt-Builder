@@ -90,6 +90,14 @@ The user can type `1` or `2` (or press Enter to accept the default).
 
 ---
 
+## How to Setup with Alfred
+
+![](https://github.com/Caffa/Quick-Prompt-Builder/blob/9a28f078fa962e7f0a708232c24ace0a1466e853/setup_guide/alfred_1.png)
+
+![](https://github.com/Caffa/Quick-Prompt-Builder/blob/9a28f078fa962e7f0a708232c24ace0a1466e853/setup_guide/alfred_2.png)
+
+Use a script filter and a terminal command option. Connect them up.
+
 ## How to Use
 
 ### 1. Create a Prompt File
