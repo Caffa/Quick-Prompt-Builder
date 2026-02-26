@@ -159,7 +159,8 @@ def main():
                     default=default_choice,
                     console=console,
                 )
-                if not user_input.strip():
+                # Check if user pressed enter (got default) or entered a number
+                if user_input == default_choice:
                     answer = default_choice
                     break
                 try:
